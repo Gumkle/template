@@ -50,11 +50,15 @@ var initCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		err = initializeEntrypoint()
+		err = initializeEntrypoint(applicationName)
 		if err != nil {
 			return err
 		}
 		err = initializeConfig(applicationName, config.ConfigLibraryName)
+		if err != nil {
+			return err
+		}
+		err = initializeGeneratorData()
 		if err != nil {
 			return err
 		}
@@ -91,8 +95,8 @@ func initializeProject(projectName string) error {
 }
 
 // todo implement api and use gin/echo for it. Create dir for middleware
-func initializeEntrypoint() error {
-	const entrypointDirectoryName = "cmd"
+func initializeEntrypoint(appName string) error {
+	firstEntrypointDirector := fmt.Sprintf("cmd/%s", appName)
 	const contents = `package main
 
 import (
@@ -102,11 +106,11 @@ import (
 func main() {
 	fmt.Printf("Hello world!")
 }`
-	err := os.Mkdir(entrypointDirectoryName, os.ModePerm)
+	err := os.MkdirAll(firstEntrypointDirector, os.ModePerm)
 	if err != nil {
 		return err
 	}
-	main, err := os.Create(fmt.Sprintf("%s/%s", entrypointDirectoryName, "main.go")) // todo delegate creating first entrypoint to separate module, seeded with init data
+	main, err := os.Create(fmt.Sprintf("%s/%s", firstEntrypointDirector, "main.go")) // todo delegate creating first entrypoint to separate module, seeded with init data
 	if err != nil {
 		return err
 	}
@@ -190,7 +194,7 @@ func (ac *ApplicationConfig) ApplicationName() string {
 
 	// alter main.go code
 	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, "cmd/main.go", nil, parser.AllErrors)
+	node, err := parser.ParseFile(fset, fmt.Sprintf("cmd/%s/main.go", appName), nil, parser.AllErrors)
 	if err != nil {
 		return err
 	}
@@ -274,12 +278,20 @@ func (ac *ApplicationConfig) ApplicationName() string {
 		}
 	}
 
-	main, err := os.Create("cmd/main.go")
+	main, err := os.Create(fmt.Sprintf("cmd/%s/main.go", appName))
 	if err != nil {
 		return err
 	}
 	defer main.Close()
 	err = printer.Fprint(main, fset, node)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func initializeGeneratorData() error {
+	err := os.Mkdir("generator", os.ModePerm)
 	if err != nil {
 		return err
 	}
