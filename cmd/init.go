@@ -97,7 +97,34 @@ func initializeProject(projectName string) error {
 // todo implement api and use gin/echo for it. Create dir for middleware
 func initializeEntrypoint(appType string) error {
 	firstEntrypointDirector := fmt.Sprintf("cmd/%s", appType)
-	const contents = `package main
+	var contents string
+	if appType == "api" {
+		cmd := exec.Command("go", "get", "-u", "github.com/gin-gonic/gin")
+		err := cmd.Run()
+		if err != nil {
+			return err
+		}
+		contents = `package main
+
+import (
+	"fmt"
+  "net/http"
+
+  "github.com/gin-gonic/gin"
+)
+
+func main() {
+	fmt.Printf("Application launched!")
+  r := gin.Default()
+  r.GET("/", func(c *gin.Context) {
+    c.JSON(http.StatusOK, gin.H{
+      "hello": "Hello world!",
+    })
+  })
+  r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+}`
+	} else {
+		contents = `package main
 
 import (
 	"fmt"
@@ -106,11 +133,12 @@ import (
 func main() {
 	fmt.Printf("Hello world!")
 }`
+	}
 	err := os.MkdirAll(firstEntrypointDirector, os.ModePerm)
 	if err != nil {
 		return err
 	}
-	main, err := os.Create(fmt.Sprintf("%s/%s", firstEntrypointDirector, "main.go")) // todo delegate creating first entrypoint to separate module, seeded with init data
+	main, err := os.Create(fmt.Sprintf("%s/%s", firstEntrypointDirector, "main.go")) // todo delegate creating entrypoint to separate module, seeded with init data
 	if err != nil {
 		return err
 	}
@@ -189,7 +217,7 @@ func NewApplicationConfig() (*ApplicationConfig, error) {
 
 	// alter main.go code
 	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, fmt.Sprintf("cmd/%s/main.go", appType), nil, parser.AllErrors)
+	node, err := parser.ParseFile(fset, fmt.Sprintf("cmd/%s/main.go", appType), nil, parser.AllErrors|parser.ParseComments)
 	if err != nil {
 		return err
 	}
