@@ -5,12 +5,11 @@ import (
 )
 
 type ApplicationConfig struct {
-	applicationName string `yaml:"application_name"`
+	ApplicationName string `yaml:"ApplicationName"`
 }
 
 func NewApplicationConfig() (*ApplicationConfig, error) {
-	viper.SetConfigType("yaml")
-	viper.SetConfigName("config/application")
+	viper.SetConfigFile("config/application.yaml")
 	err := viper.ReadInConfig()
 	if err != nil {
 		return nil, err
@@ -21,8 +20,4 @@ func NewApplicationConfig() (*ApplicationConfig, error) {
 		return nil, err
 	}
 	return config, nil
-}
-
-func (ac *ApplicationConfig) ApplicationName() string {
-	return ac.applicationName
 }

@@ -8,8 +8,8 @@ import (
 
 func main() {
 	applicationConfig, err := config.NewApplicationConfig()
-	if err == nil {
+	if err != nil {
 		log.Fatalf("Failed to read configuration file: %v", err)
 	}
-	fmt.Printf("Hello world! Welcome to %s!", applicationConfig.ApplicationName())
+	fmt.Printf("Hello world! Welcome to %s!\n", applicationConfig.ApplicationName)
 }

@@ -131,7 +131,7 @@ func initializeConfig(appName, appType, configLibName string) error {
 		initialConfigFileName   = "application.yaml"
 		initialConfigSourceName = "application.go"
 	)
-	initialConfigurationFileContents := fmt.Sprintf("application_name: %s", appName)
+	initialConfigurationFileContents := fmt.Sprintf("ApplicationName: %s", appName)
 	initialConfigurationSourceContents := `package config
 
 import (
@@ -139,12 +139,11 @@ import (
 )
 
 type ApplicationConfig struct {
-	applicationName string ` + "`yaml:\"application_name\"`" + `
+	ApplicationName string ` + "`yaml:\"ApplicationName\"`" + `
 }
 
 func NewApplicationConfig() (*ApplicationConfig, error) {
-	viper.SetConfigType("yaml")
-	viper.SetConfigName("config/application")
+	viper.SetConfigFile("config/application.yaml")
 	err := viper.ReadInConfig()
 	if err != nil {
 		return nil, err
@@ -155,10 +154,6 @@ func NewApplicationConfig() (*ApplicationConfig, error) {
 		return nil, err
 	}
 	return config, nil
-}
-
-func (ac *ApplicationConfig) ApplicationName() string {
-	return ac.applicationName
 }`
 	cmd := exec.Command("go", "get", configLibName)
 	err := cmd.Run()
@@ -219,7 +214,7 @@ func (ac *ApplicationConfig) ApplicationName() string {
 			errorCheckStatement := &ast.IfStmt{
 				Cond: &ast.BinaryExpr{
 					X:  &ast.Ident{Name: "err"},
-					Op: token.EQL,
+					Op: token.NEQ,
 					Y:  &ast.Ident{Name: "nil"},
 				},
 				Body: &ast.BlockStmt{
@@ -254,13 +249,11 @@ func (ac *ApplicationConfig) ApplicationName() string {
 									callExpression.Args = []ast.Expr{
 										&ast.BasicLit{
 											Kind:  token.STRING,
-											Value: fmt.Sprintf("\"%s %s\"", previousMessage, "Welcome to %s!"),
+											Value: fmt.Sprintf("\"%s %s\"", previousMessage, "Welcome to %s!\\n"),
 										},
-										&ast.CallExpr{
-											Fun: &ast.SelectorExpr{
-												X:   &ast.Ident{Name: "applicationConfig"},
-												Sel: &ast.Ident{Name: "ApplicationName"},
-											},
+										&ast.SelectorExpr{
+											X:   &ast.Ident{Name: "applicationConfig"},
+											Sel: &ast.Ident{Name: "ApplicationName"},
 										},
 									}
 									break
