@@ -50,11 +50,11 @@ var initCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		err = initializeEntrypoint(applicationName)
+		err = initializeEntrypoint(applicationType)
 		if err != nil {
 			return err
 		}
-		err = initializeConfig(applicationName, config.ConfigLibraryName)
+		err = initializeConfig(applicationName, applicationType, config.ConfigLibraryName)
 		if err != nil {
 			return err
 		}
@@ -95,8 +95,8 @@ func initializeProject(projectName string) error {
 }
 
 // todo implement api and use gin/echo for it. Create dir for middleware
-func initializeEntrypoint(appName string) error {
-	firstEntrypointDirector := fmt.Sprintf("cmd/%s", appName)
+func initializeEntrypoint(appType string) error {
+	firstEntrypointDirector := fmt.Sprintf("cmd/%s", appType)
 	const contents = `package main
 
 import (
@@ -123,7 +123,7 @@ func main() {
 }
 
 // todo after init, possibility to add new config keys and config files with separate structures
-func initializeConfig(appName, configLibName string) error {
+func initializeConfig(appName, appType, configLibName string) error {
 	// create config directory structure
 	const (
 		configFileDirectory     = "config"
@@ -194,7 +194,7 @@ func (ac *ApplicationConfig) ApplicationName() string {
 
 	// alter main.go code
 	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, fmt.Sprintf("cmd/%s/main.go", appName), nil, parser.AllErrors)
+	node, err := parser.ParseFile(fset, fmt.Sprintf("cmd/%s/main.go", appType), nil, parser.AllErrors)
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func (ac *ApplicationConfig) ApplicationName() string {
 		}
 	}
 
-	main, err := os.Create(fmt.Sprintf("cmd/%s/main.go", appName))
+	main, err := os.Create(fmt.Sprintf("cmd/%s/main.go", appType))
 	if err != nil {
 		return err
 	}
