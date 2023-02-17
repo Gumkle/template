@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"go/ast"
-	"go/importer"
 	"go/parser"
 	"go/printer"
 	"go/token"
-	"go/types"
+	"golang.org/x/tools/go/ast/astutil"
 	"os"
 	"os/exec"
+	"strings"
 	"template/config"
 )
 
@@ -156,12 +156,6 @@ func NewApplicationConfig() (*ApplicationConfig, error) {
 func (ac *ApplicationConfig) ApplicationName() string {
 	return ac.applicationName
 }`
-	//mainSourceFileConfigAddition := `applicationConfig, err := config.NewApplicationConfig()
-	//if err != nil {
-	//	log.Fatalln(err)
-	//}
-	//applicationName := applicationConfig.ApplicationName()`
-
 	cmd := exec.Command("go", "get", configLibName)
 	err := cmd.Run()
 	if err != nil {
@@ -203,35 +197,80 @@ func (ac *ApplicationConfig) ApplicationName() string {
 	funcName := "main"
 	for _, decl := range node.Decls {
 		if f, ok := decl.(*ast.FuncDecl); ok && f.Name.Name == funcName {
-			// Add a new statement at the beginning of the function body.
-			newStmt := &ast.ExprStmt{
-				X: &ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   &ast.Ident{Name: "fmt"},
-						Sel: &ast.Ident{Name: "Println"},
-					},
-					Args: []ast.Expr{
-						&ast.BasicLit{
-							Kind:  token.STRING,
-							Value: `"Hello, world!"`,
+			configAssignmentStatement := &ast.AssignStmt{
+				Lhs: []ast.Expr{
+					&ast.Ident{Name: "applicationConfig"},
+					&ast.Ident{Name: "err"},
+				},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   &ast.Ident{Name: "config"},
+							Sel: &ast.Ident{Name: "NewApplicationConfig"},
 						},
 					},
 				},
 			}
-			f.Body.List = append([]ast.Stmt{newStmt}, f.Body.List...)
-
-			// Type-check the modified AST to ensure it's still valid Go code.
-			conf := types.Config{Importer: importer.Default()}
-			info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
-			_, err := conf.Check("cmd/main.go", fset, []*ast.File{node}, &info)
-			if err != nil {
-				return err
+			errorCheckStatement := &ast.IfStmt{
+				Cond: &ast.BinaryExpr{
+					X:  &ast.Ident{Name: "err"},
+					Op: token.EQL,
+					Y:  &ast.Ident{Name: "nil"},
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   &ast.Ident{Name: "log"},
+									Sel: &ast.Ident{Name: "Fatalf"},
+								},
+								Args: []ast.Expr{
+									&ast.BasicLit{
+										Kind:  token.STRING,
+										Value: `"Failed to read configuration file: %v"`,
+									},
+									&ast.Ident{Name: "err"},
+								},
+							},
+						},
+					},
+				},
 			}
 
-			// Print the modified source code.
-			//if err := printer.Fprint(os.Stdout, fset, node); err != nil {
-			//	return err
-			//}
+			// find and alter print statement
+			for _, statement := range f.Body.List {
+				if expressionStatement, ok := statement.(*ast.ExprStmt); ok {
+					if callExpression, ok := expressionStatement.X.(*ast.CallExpr); ok {
+						if selectorExpression, ok := callExpression.Fun.(*ast.SelectorExpr); ok {
+							if ident, ok := selectorExpression.X.(*ast.Ident); ok {
+								if ident.Name == "fmt" && selectorExpression.Sel.Name == "Printf" {
+									previousMessage := strings.Trim(callExpression.Args[0].(*ast.BasicLit).Value, "\"")
+									callExpression.Args = []ast.Expr{
+										&ast.BasicLit{
+											Kind:  token.STRING,
+											Value: fmt.Sprintf("\"%s %s\"", previousMessage, "Welcome to %s!"),
+										},
+										&ast.CallExpr{
+											Fun: &ast.SelectorExpr{
+												X:   &ast.Ident{Name: "applicationConfig"},
+												Sel: &ast.Ident{Name: "ApplicationName"},
+											},
+										},
+									}
+									break
+								}
+							}
+						}
+					}
+				}
+			}
+
+			f.Body.List = append([]ast.Stmt{configAssignmentStatement, errorCheckStatement}, f.Body.List...)
+			astutil.AddImport(fset, node, "log")
+			astutil.AddImport(fset, node, fmt.Sprintf("%s/%s", appName, configSourceDirectory))
+			ast.SortImports(fset, node)
 		}
 	}
 

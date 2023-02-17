@@ -1,4 +1,4 @@
-module kappa
+module example_generated_project
 
 go 1.19
 
