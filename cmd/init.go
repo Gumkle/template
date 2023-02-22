@@ -114,11 +114,11 @@ import (
 )
 
 func main() {
-	fmt.Printf("Application launched!")
+	message := fmt.Sprintf("Hello world!")
   r := gin.Default()
   r.GET("/", func(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{
-      "hello": "Hello world!",
+      "hello": message,
     })
   })
   r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
@@ -131,7 +131,8 @@ import (
 )
 
 func main() {
-	fmt.Printf("Hello world!")
+	message := fmt.Sprintf("Hello world!")
+	fmt.Printf(message)
 }`
 	}
 	err := os.MkdirAll(firstEntrypointDirector, os.ModePerm)
@@ -268,16 +269,16 @@ func NewApplicationConfig() (*ApplicationConfig, error) {
 
 			// find and alter print statement
 			for _, statement := range f.Body.List {
-				if expressionStatement, ok := statement.(*ast.ExprStmt); ok {
-					if callExpression, ok := expressionStatement.X.(*ast.CallExpr); ok {
+				if assignStatement, ok := statement.(*ast.AssignStmt); ok {
+					if callExpression, ok := assignStatement.Rhs[0].(*ast.CallExpr); ok {
 						if selectorExpression, ok := callExpression.Fun.(*ast.SelectorExpr); ok {
 							if ident, ok := selectorExpression.X.(*ast.Ident); ok {
-								if ident.Name == "fmt" && selectorExpression.Sel.Name == "Printf" {
+								if ident.Name == "fmt" && selectorExpression.Sel.Name == "Sprintf" {
 									previousMessage := strings.Trim(callExpression.Args[0].(*ast.BasicLit).Value, "\"")
 									callExpression.Args = []ast.Expr{
 										&ast.BasicLit{
 											Kind:  token.STRING,
-											Value: fmt.Sprintf("\"%s %s\"", previousMessage, "Welcome to %s!\\n"),
+											Value: fmt.Sprintf("\"%s %s\"", previousMessage, "Welcome to %s!"),
 										},
 										&ast.SelectorExpr{
 											X:   &ast.Ident{Name: "applicationConfig"},

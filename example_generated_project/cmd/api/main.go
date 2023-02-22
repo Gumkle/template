@@ -14,11 +14,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to read configuration file: %v", err)
 	}
-	fmt.Printf("Application launched! Welcome to %s!\n", applicationConfig.ApplicationName)
+	message := fmt.Sprintf("Hello world! Welcome to %s!\n", applicationConfig.ApplicationName)
 	r := gin.Default()
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"hello": "Hello world!",
+			"hello": message,
 		})
 	})
 	r.Run()	// listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
