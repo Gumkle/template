@@ -6,6 +6,7 @@ import (
 
 type ApplicationConfig struct {
 	ApplicationName string `yaml:"ApplicationName"`
+	Newprop         string `yaml:"newprop"`
 }
 
 func NewApplicationConfig() (*ApplicationConfig, error) {

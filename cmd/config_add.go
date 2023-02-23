@@ -4,13 +4,17 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/spf13/cobra"
 	"go/ast"
+	"go/format"
 	"go/parser"
+	"go/printer"
 	"go/token"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+	"io/fs"
 	"os"
 	"strings"
 )
@@ -128,6 +132,92 @@ func propertyExistsInCategory(category string, name string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func createPropertyOnCategory(category string, name string, typeName string) error {
+	// fixme duplicated path resolving
+	configDir := "config"
+	fileSuffix := "yaml"
+	filePath := fmt.Sprintf("%s/%s.%s", configDir, category, fileSuffix)
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, fs.ModePerm)
+	if err != nil {
+		return err
+	}
+	_, err = file.WriteString(fmt.Sprintf("%s: %v\n", name, resolveDefaultValueForType(typeName)))
+	if err != nil {
+		return err
+	}
+	err = file.Close()
+	if err != nil {
+		return err
+	}
+
+	// FIXME duplicated resolving source file path
+	configSourceFilesDir := "pkg/infra/config"
+	configSourceFileSuffix := "go"
+	configSourcePath := fmt.Sprintf("%s/%s.%s", configSourceFilesDir, category, configSourceFileSuffix)
+
+	// FIXME duplicated localizing the struct
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, configSourcePath, nil, parser.AllErrors|parser.ParseComments)
+	if err != nil {
+		return err
+	}
+	for _, decl := range node.Decls {
+		declaration, ok := decl.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+		if declaration.Tok != token.TYPE {
+			continue
+		}
+		typeSpec, ok := declaration.Specs[0].(*ast.TypeSpec)
+		if !ok {
+			continue
+		}
+		if typeSpec.Name.Name != fmt.Sprintf("%sConfig", cases.Title(language.Und).String(category)) {
+			continue
+		}
+		structType, ok := typeSpec.Type.(*ast.StructType)
+		if !ok {
+			continue
+		}
+		structType.Fields.List = append(structType.Fields.List, &ast.Field{
+			Names: []*ast.Ident{
+				{
+					Name: cases.Title(language.Und).String(name),
+				},
+			},
+			Type: ast.NewIdent(typeName),
+			Tag:  &ast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf("`yaml:\"%s\"`", name)},
+		})
+		break
+	}
+	var buf bytes.Buffer
+	err = printer.Fprint(&buf, fset, node)
+	if err != nil {
+		return err
+	}
+	code := buf.String()
+	formattedCode, err := format.Source([]byte(code))
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(configSourcePath, formattedCode, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func resolveDefaultValueForType(name string) any {
+	if strings.Contains(name, "int") {
+		return 0
+	}
+	if strings.Contains(name, "float") {
+		return 0.0
+	}
+	return "string_value"
 }
 
 func init() {
