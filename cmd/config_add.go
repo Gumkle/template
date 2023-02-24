@@ -43,7 +43,10 @@ var addCmd = &cobra.Command{
 			}
 			return fmt.Errorf("the property %v in category %v exists already", propertyName, category)
 		}
-		createPropertyOnCategory(category, propertyName, propertyType)
+		err := createPropertyOnCategory(category, propertyName, propertyType)
+		if err != nil {
+			return err
+		}
 		return nil
 	},
 }
@@ -134,6 +137,8 @@ func propertyExistsInCategory(category string, name string) (bool, error) {
 	return false, nil
 }
 
+// fixme every name is title case, even if the user's input is not. The rest of the letters are lower case
+// fixme if I give type like time.Duration, there should be an import added. Let's do it for time for now
 func createPropertyOnCategory(category string, name string, typeName string) error {
 	// fixme duplicated path resolving
 	configDir := "config"
